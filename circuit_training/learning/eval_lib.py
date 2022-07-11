@@ -20,7 +20,6 @@ import statistics
 import time
 from typing import Text
 
-from absl import flags
 from absl import logging
 from tf_agents.experimental.distributed import reverb_variable_container
 from tf_agents.metrics import py_metric
@@ -32,21 +31,6 @@ from tf_agents.train import learner
 from tf_agents.train.utils import train_utils
 from tf_agents.trajectories import trajectory
 from tf_agents.utils import common
-
-
-flags.DEFINE_string('netlist_file', '',
-                    'File path to the netlist file.')
-flags.DEFINE_string('init_placement', '',
-                    'File path to the init placement file.')
-flags.DEFINE_string('root_dir', os.getenv('TEST_UNDECLARED_OUTPUTS_DIR'),
-                    'Root directory for writing logs/summaries/checkpoints.')
-flags.DEFINE_string('variable_container_server_address', None,
-                    'Variable container server address.')
-flags.DEFINE_integer(
-    'global_seed', 111,
-    'Used in env and weight initialization, does not impact action sampling.')
-
-FLAGS = flags.FLAGS
 
 
 class InfoMetric(py_metric.PyStepMetric):
@@ -119,7 +103,7 @@ def evaluate(root_dir, variable_container_server_address, create_env_fn):
   model_id = common.create_variable('model_id')
 
   # Create the environment.
-  env = create_env_fn(train_step=train_step)
+  env = create_env_fn()
   variables = {
       reverb_variable_container.POLICY_KEY: policy.variables(),
       reverb_variable_container.TRAIN_STEP_KEY: train_step,

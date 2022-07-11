@@ -15,7 +15,6 @@
 """Library for PPO collect job."""
 import os
 
-from absl import flags
 from absl import logging
 
 import reverb
@@ -29,32 +28,6 @@ from tf_agents.train.utils import train_utils
 from tf_agents.utils import common
 
 
-flags.DEFINE_string('netlist_file', '',
-                    'File path to the netlist file.')
-flags.DEFINE_string('init_placement', '',
-                    'File path to the init placement file.')
-flags.DEFINE_string('root_dir', os.getenv('TEST_UNDECLARED_OUTPUTS_DIR'),
-                    'Root directory for writing logs/summaries/checkpoints.')
-flags.DEFINE_string('replay_buffer_server_address', None,
-                    'Replay buffer server address.')
-flags.DEFINE_string('variable_container_server_address', None,
-                    'Variable container server address.')
-flags.DEFINE_integer(
-    'task_id', 0, 'Identifier of the collect task. Must be unique in a job.')
-flags.DEFINE_integer(
-    'write_summaries_task_threshold', 1,
-    'Collect jobs with tas ID smaller than this value writes '
-    'summaries only.')
-flags.DEFINE_integer(
-    'max_sequence_length', 134,
-    'The sequence length for Reverb replay buffer. Depends on the environment.')
-flags.DEFINE_integer(
-    'global_seed', 111,
-    'Used in env and weight initialization, does not impact action sampling.')
-
-FLAGS = flags.FLAGS
-
-
 def collect(task,
             root_dir,
             replay_buffer_server_address,
@@ -64,7 +37,8 @@ def collect(task,
             write_summaries_task_threshold=1):
   """Collects experience using a policy updated after every episode."""
   # Create the environment.
-  env = create_env_fn()
+  train_step = train_utils.create_train_step()
+  env = create_env_fn(train_step=train_step)
 
   # Create the path for the serialized collect policy.
   policy_saved_model_path = os.path.join(root_dir,
@@ -85,7 +59,6 @@ def collect(task,
     raise e
 
   # Create the variable container.
-  train_step = train_utils.create_train_step()
   model_id = common.create_variable('model_id')
   variables = {
       reverb_variable_container.POLICY_KEY: policy.variables(),

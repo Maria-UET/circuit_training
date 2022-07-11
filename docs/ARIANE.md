@@ -21,7 +21,7 @@ iterations which results in ~107K steps (gradient updates). This
 [tensorboard link](https://tensorboard.dev/experiment/NRlmrDeOT2i4QV334hrywQ)
 contains the raw results of the runs for full transparency and usefulness.
 
-Run      | Seed | Proxy Wirelength | Proxy Congestion | Proxy Density | Step
+Run id   | Seed | Proxy Wirelength | Proxy Congestion | Proxy Density | Step
 -------- | ---- | ---------------- | ---------------- | ------------- | -------
 run_00   | 111  | 0.1051           | 0.8746           | 0.5154        | 77,184
 run_01   | 111  | 0.0979           | 0.8749           | 0.5217        | 51,992
@@ -32,16 +32,21 @@ run_05   | 222  | 0.1060           | 1.0352           | 0.5886        | 37,520
 run_06   | 333  | 0.1012           | 0.8738           | 0.5110        | 46,096
 run_07   | 333  | 0.0977           | 0.8684           | 0.5109        | 35,912
 run_08   | 333  | 0.1004           | 0.8613           | 0.5160        | 48,776
-         |      |                  |                  |               |
-**mean** |      | 0.1013           | 0.9174           | 0.5502        |
-**std**  |      | 0.0036           | 0.0647           | 0.0568        |
+
+
+_        | Proxy Wirelength | Proxy Congestion | Proxy Density
+-------- | ---------------- | ---------------- | -------------
+**mean** | 0.1013           | 0.9174           | 0.5502
+**std**  | 0.0036           | 0.0647           | 0.0568
+
 
 Applying coordinated descent after training resulted in improved proxy numbers
 for complex blocks like those used in TPUs as referenced in the paper. However,
 for the simpler Ariane RISC-V there were modest (1-2%) improvements to proxy
 wirelength and congestion.
 
-         | Proxy Wirelength | Proxy Congestion | Proxy Density
+
+_        | Proxy Wirelength | Proxy Congestion | Proxy Density
 -------- | ---------------- | ---------------- | -------------
 **mean** | 0.0988           | 0.9077           | 0.5513
 **std**  | 0.0053           | 0.0621           | 0.0589
@@ -311,38 +316,29 @@ the tf-agents.
 
 | Configuration              | Default Value     | Comments                   |
 | -------------------------- | ----------------- | -------------------------- |
-| **Proxy reward             |                   |                            |
-: calculation**              :                   :                            :
+| **Proxy reward calculation**                                                |
 | wirelength_weight          | 1.0               |                            |
-| density_weight             | 1.0               | Changed from 0.1 in the    |
-:                            :                   : paper, since it produces   :
-:                            :                   : more stable training from  :
-:                            :                   : scratch on Ariane blocks.  :
-| congestion_weight          | 0.5               | Changed fro 0.1 in the     |
-:                            :                   : paper, since it produces   :
-:                            :                   : more stable training from  :
-:                            :                   : scratch on Ariane blocks.. :
-| **Standard cell            |                   |                            |
-: placement**                :                   :                            :
+| density_weight             | 1.0               | Changed from 0.1 in the paper, since it produces more stable training from scratch on Ariane blocks. |
+| congestion_weight          | 0.5               | Changed from 0.1 in the paper, since it produces more stable training from scratch on Ariane blocks. |
+| **Standard cell placement**                                                 |
 | num_steps                  | [100, 100, 100]   |                            |
 | io_factor                  | 1.0               |                            |
 | move_distance_factors      | [1, 1, 1]         |                            |
 | attract_factors            | [100, 1e-3, 1e-5] |                            |
 | repel_factors              | [0, 1e6, 1e7]     |                            |
-| **Environment              |                   |                            |
-: observation**              :                   :                            :
+| **Environment observation**                                                 |
 | max_num_nodes              | 4700              |                            |
 | max_num_edges              | 28400             |                            |
 | max_grid_size              | 128               |                            |
 | default_location_x         | 0.5               |                            |
 | default_location_y         | 0.5               |                            |
-| **Model architecture**     |                   |                            |
+| **Model architecture**                                                      |
 | num_gcn_layers             | 3                 |                            |
 | edge_fc_layers             | 1                 |                            |
 | gcn_node_dim               | 8                 |                            |
 | dirichlet_alpha            | 0.1               |                            |
 | policy_noise_weight        | 0.0               |                            |
-| **Training**               |                   |                            |
+| **Training**                                                                |
 | optimizer                  | Adam              |                            |
 | learning_rate              | 4e-4              |                            |
 | sequence_length            | 134               |                            |

@@ -17,17 +17,19 @@
 import os
 import time
 
-from absl import flags
+from typing import Callable
+
 from absl import logging
 
+from circuit_training.environment import environment as oss_environment
 from circuit_training.learning import agent
 from circuit_training.learning import learner as learner_lib
-
 
 import reverb
 import tensorflow as tf
 
 from tf_agents.experimental.distributed import reverb_variable_container
+from tf_agents.networks import network
 from tf_agents.replay_buffers import reverb_replay_buffer
 from tf_agents.train import learner as actor_learner
 from tf_agents.train import triggers
@@ -36,62 +38,61 @@ from tf_agents.train.utils import train_utils
 from tf_agents.utils import common
 
 
-flags.DEFINE_string('netlist_file', '',
-                    'File path to the netlist file.')
-flags.DEFINE_string('init_placement', '',
-                    'File path to the init placement file.')
-flags.DEFINE_string('root_dir', os.getenv('TEST_UNDECLARED_OUTPUTS_DIR'),
-                    'Root directory for writing logs/summaries/checkpoints.')
-flags.DEFINE_string('replay_buffer_server_address', None,
-                    'Replay buffer server address.')
-flags.DEFINE_string('variable_container_server_address', None,
-                    'Variable container server address.')
-flags.DEFINE_integer('num_iterations', 10000,
-                     'Total number train/eval iterations to perform.')
-flags.DEFINE_integer(
-    'sequence_length', 134,
-    'The sequence length to estimate shuffle size. Depends on the environment.'
-    'Max horizon = T translates to sequence_length T+1 because of the '
-    'additional boundary step (last -> first).')
-flags.DEFINE_integer(
-    'num_episodes_per_iteration', 1024,
-    'This is the number of episodes we train on in each iteration.')
-flags.DEFINE_integer(
-    'global_batch_size', 1024,
-    'Global batch size across all replicas.')
-
-flags.DEFINE_integer(
-    'global_seed', 111,
-    'Used in env and weight initialization, does not impact action sampling.')
-
-
-FLAGS = flags.FLAGS
-
-
 def train(
-    root_dir,
-    strategy,
-    replay_buffer_server_address,
-    variable_container_server_address,
-    create_env_fn,
-    sequence_length,
+    root_dir: str,
+    strategy: tf.distribute.Strategy,
+    replay_buffer_server_address: str,
+    variable_container_server_address: str,
+    create_env_fn: Callable[[], oss_environment.CircuitEnv],
+    sequence_length: int,
+    actor_net: network.Network,
+    value_net: network.Network,
     # Training params
     # This is the per replica batch size. The global batch size can be computed
     # by this number multiplied by the number of replicas (8 in the case of 2x2
     # TPUs).
-    per_replica_batch_size=32,
-    num_epochs=4,
-    num_iterations=10000,
+    use_grl: bool = True,
+    per_replica_batch_size: int = 32,
+    num_epochs: int = 4,
+    num_iterations: int = 10000,
     # This is the number of episodes we train on in each iteration.
     # num_episodes_per_iteration * epsisode_length * num_epochs =
     # global_step (number of gradient updates) * per_replica_batch_size *
     # num_replicas.
-    num_episodes_per_iteration=1024,
-    use_model_tpu=False):
-  """Trains a PPO agent."""
+    num_episodes_per_iteration: int = 1024,
+    allow_variable_length_episodes: bool = False) -> None:
+  """Trains a PPO agent.
+
+  Args:
+    root_dir: Main directory path where checkpoints, saved_models, and summaries
+      will be written to.
+    strategy: `tf.distribute.Strategy` to use during training.
+    replay_buffer_server_address: Address of the reverb replay server.
+    variable_container_server_address: The address of the Reverb server for
+      ReverbVariableContainer.
+    create_env_fn: Function to create circuit training environment.
+    sequence_length: Fixed sequence length for elements in the dataset. Used for
+      calculating how many iterations of minibatches to use for training.
+    actor_net: TF-Agents actor network.
+    value_net: TF-Agents value network.
+    use_grl: Whether to use GRL agent network or RL fully connected agent
+      network.
+    per_replica_batch_size: The minibatch size for learner. The dataset used for
+      training is shaped `[minibatch_size, 1, ...]`. If None, full sequences
+      will be fed into the agent. Please set this parameter to None for RNN
+      networks which requires full sequences.
+    num_epochs: The number of iterations to go through the same sequences. The
+      num_episodes_per_iteration are repeated for num_epochs times in a
+      particular learner run.
+    num_iterations: The number of iterations to run the training.
+    num_episodes_per_iteration: This is the number of episodes we train in each
+      epoch.
+    allow_variable_length_episodes: Whether to support variable length episodes
+      for training.
+  """
   # Get the specs from the environment.
   env = create_env_fn()
-  observation_tensor_spec, action_tensor_spec, time_step_tensor_spec = (
+  _, action_tensor_spec, time_step_tensor_spec = (
       spec_utils.get_tensor_specs(env))
 
   # Create the agent.
@@ -99,17 +100,21 @@ def train(
     train_step = train_utils.create_train_step()
     model_id = common.create_variable('model_id')
 
-    logging.info('Using GRL agent networks.')
-    static_features = env.wrapped_env().get_static_obs()
-    tf_agent = agent.create_circuit_ppo_grl_agent(
+    if use_grl:
+      logging.info('Using GRL agent networks.')
+      creat_agent_fn = agent.create_circuit_ppo_grl_agent
+    else:
+      logging.info('Using RL fully connected agent networks.')
+      creat_agent_fn = agent.create_circuit_ppo_agent
+
+    tf_agent = creat_agent_fn(
         train_step,
-        observation_tensor_spec,
         action_tensor_spec,
         time_step_tensor_spec,
+        actor_net,
+        value_net,
         strategy,
-        static_features=static_features,
-        use_model_tpu=use_model_tpu)
-
+    )
     tf_agent.initialize()
 
   # Create the policy saver which saves the initial model now, then it
@@ -201,7 +206,7 @@ def train(
       strategy=strategy,
       num_epochs=num_epochs,
       per_sequence_fn=per_sequence_fn,
-  )
+      allow_variable_length_episodes=allow_variable_length_episodes)
 
   # Run the training loop.
   for i in range(num_iterations):
