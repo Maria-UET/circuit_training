@@ -30,4 +30,4 @@ $ python3 -m circuit_training.placement_viewer.placement_viewer
   
 #### Example plot: Ariane RISC-V placement done by Circuit Training after training from scratch i.e.  [Full Scale Ariane example](https://github.com/google-research/circuit_training/blob/main/docs/ARIANE.md "Full Scale Ariane example") 
 
-![picture alt](https://github.com/Maria-UET/MacroPlacement/blob/bc90e6deaceca15ff0ce846f7c441eddc3f44034/Utilities/placement_viewer/test_data/ariane/ariane_final_placement.png "Ariane RISC-V placement done by Circuit Training after training from scratch")
+![picture alt](https://github.com/Maria-UET/circuit_training/blob/20c533c3a61e844f4d08fb0d6b82cb3ee5e89a13/placement_viewer/test_data/ariane/ariane_final_placement.png "Ariane RISC-V placement done by Circuit Training after training from scratch")
