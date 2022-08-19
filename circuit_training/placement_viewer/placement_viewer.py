@@ -5,6 +5,7 @@ from absl import flags
 from typing import Sequence, Tuple
 
 from circuit_training.environment import plc_client
+from circuit_training.environment.placement_util import nodes_of_types
 
 flags.DEFINE_string("netlist_file", None, "Path to the input netlist file.")
 flags.DEFINE_string("init_file", None, "Path to the init file.")
@@ -22,27 +23,57 @@ FLAGS = flags.FLAGS
 def _draw_placement(plc: plc_client.PlacementCost, img_name: str) -> None:
     plt.figure()
     fig, ax = plt.subplots()
-    cm=['blue','red']
     plt.xlim(0, plc.get_canvas_width_height()[0])
     plt.ylim(0, plc.get_canvas_width_height()[1])
 
-    for i in plc.get_macro_indices():
+    for i in nodes_of_types(plc,['MACRO', 'STDCELL', 'PORT', 'MACRO_PIN']):
         x = plc.get_node_location(i)[0]-(plc.get_node_width_height(i)[0]/2)
         y = plc.get_node_location(i)[1]-(plc.get_node_width_height(i)[1]/2)
         w = plc.get_node_width_height(i)[0]
         h = plc.get_node_width_height(i)[1]
-        orient = plc.get_macro_orientation(i)
-        if orient in [ 'E', 'FE', 'W', 'FW']:
-            h = plc.get_node_width_height(i)[0]
-            w = plc.get_node_width_height(i)[1]
 
-        ax.add_patch(Rectangle((x, y),
+        if plc.get_node_type(i) =='MACRO' and not plc.is_node_soft_macro(i):             
+            orient = plc.get_macro_orientation(i)
+            if orient in [ 'E', 'FE', 'W', 'FW']:
+                h = plc.get_node_width_height(i)[0]
+                w = plc.get_node_width_height(i)[1]
+
+            ax.add_patch(Rectangle((x, y),
+                                w,h ,
+                                facecolor = 'blue',
+                                edgecolor ='black',
+                                linewidth = 1,
+                                linestyle="solid"))
+
+        elif plc.is_node_soft_macro(i):
+            ax.add_patch(Rectangle((x, y),
                             w,h ,
-                            facecolor = cm[plc.is_node_soft_macro(i)],
+                            facecolor = 'red',
                             edgecolor ='black',
                             linewidth = 1,
+                            linestyle="solid"))  
+
+        elif plc.get_node_type(i) =='PORT': 
+            ax.add_patch(Rectangle((x, y),
+                            w,h ,
+                            facecolor = 'cyan',
+                            edgecolor ='cyan',
+                            linewidth = 1,
+                            linestyle="solid"))  
+
+        elif plc.get_node_type(i) =='MACRO_PIN': 
+            ax.add_patch(Rectangle((x, y),
+                            w,h ,
+                            facecolor = 'green',
+                            edgecolor ='green',
+                            linewidth = 1,
                             linestyle="solid")) 
+        else: 
+            print('invalid')
+  
+
     plt.savefig(img_name)
+
 
 
 def _get_final_canvas_dims(plc: plc_client.PlacementCost) -> Tuple[float, float, int, int]:
